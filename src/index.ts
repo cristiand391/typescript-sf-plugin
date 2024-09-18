@@ -49,7 +49,8 @@ function init(modules: { typescript: typeof import("typescript/lib/tsserverlibra
           }
           projectService.logger.info(`bundleMsgName: ${bundleMsgName}`)
 
-          const messageFilePath = `${projectService.currentDirectory}/messages/${bundleMsgName}.md`
+          const messageFilePath = `${info.project.getCurrentDirectory()}/messages/${bundleMsgName}.md`
+          projectService.logger.info(`filePath: ${messageFilePath}`)
 
           const messageRawMarkdown = readFileSync(messageFilePath, 'utf8')
 
@@ -111,7 +112,7 @@ function init(modules: { typescript: typeof import("typescript/lib/tsserverlibra
 
         // if string and is arg of `getMessage`
         if (node.kind == 11 && node.parent.getText().startsWith('messages.getMessage') || node.parent.getText().startsWith('messages.createError')) {
-          const messageFilePath = `${projectService.currentDirectory}/messages/${bundleMsgName}.md`
+          const messageFilePath = `${info.project.getCurrentDirectory()}/messages/${bundleMsgName}.md`
 
           const messageRawMarkdown = readFileSync(messageFilePath, 'utf8')
 
