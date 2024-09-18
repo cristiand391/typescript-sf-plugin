@@ -80,6 +80,71 @@ function init(modules: { typescript: typeof import("typescript/lib/tsserverlibra
 
       return prior
     }
+    
+    proxy.getDefinitionAndBoundSpan = (fileName, position) => {
+      const prior = info.languageService.getDefinitionAndBoundSpan(fileName, position)
+
+      if (!prior) {
+        const projectService = info.project.projectService
+        projectService.logger.info('no definition found')
+        
+        const sourceFile = info.languageService.getProgram()?.getSourceFile(fileName) as ts.SourceFile;
+
+        const node = tsutils.getTokenAtPosition(sourceFile, position)
+        if (!node) return
+
+        const messageImportNode = sourceFile.getChildren()[0].getChildren().find(
+          childNode => childNode.getText().startsWith('const messages = Messages.loadMessages')
+        )
+        if (!messageImportNode) {
+          projectService.logger.info('Unable to find message import node')
+          return
+        }
+
+        const bundleMsgName = 
+          // @ts-ignore
+          messageImportNode.getChildren()[0].getChildren()[1].getChildren()[0].getChildren()[2].getChildren()[2].getChildren()[2].text
+        if (!bundleMsgName) {
+          projectService.logger.info("Unable to find bundle message name")
+        }
+        projectService.logger.info(`bundleMsgName: ${bundleMsgName}`)
+
+        // if string and is arg of `getMessage`
+        if (node.kind == 11 && node.parent.getText().startsWith('messages.getMessage') || node.parent.getText().startsWith('messages.createError')) {
+          const messageFilePath = `${projectService.currentDirectory}/messages/${bundleMsgName}.md`
+
+          const messageRawMarkdown = readFileSync(messageFilePath, 'utf8')
+
+          // @ts-ignore
+          const msgKey = node.text as string
+
+          const textSpanStart = messageRawMarkdown.indexOf(msgKey)
+
+
+          return {
+            definitions: [{
+              name: `${msgKey} definition`,
+              containerKind: ts.ScriptElementKind.string,
+              containerName: '',
+              kind: ts.ScriptElementKind.string,
+              fileName: messageFilePath,
+              textSpan: {
+                start: textSpanStart, // char position in the file
+                length: msgKey.length // length of def (msg key)
+              }
+            }],
+            // TODO: what do these do? 
+            textSpan: {
+              start: 0, 
+              length: 5
+            }
+          }
+        }
+
+      }
+
+      return prior
+    }
 
     return proxy;
   }
