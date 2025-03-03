@@ -1,3 +1,12 @@
+## [0.1.2](https://github.com/cristiand391/typescript-sf-plugin/compare/0.1.1...0.1.2) (2025-03-03)
+
+
+### Bug Fixes
+
+* remove TS as dep ([fb0104a](https://github.com/cristiand391/typescript-sf-plugin/commit/fb0104ad67f23a11032b862d69fc20629699d781))
+
+
+
 ## [0.1.1](https://github.com/cristiand391/typescript-sf-plugin/compare/0.1.0...0.1.1) (2025-03-03)
 
 
