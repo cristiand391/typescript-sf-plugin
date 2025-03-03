@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "A TypeScript language service plugin for Salesforce CLI plugin development.",
   "main": "./lib",
+  "files": [
+    "/lib"
+  ],
   "dependencies": {
     "tsutils": "^3.21.0",
     "typescript": "^5.5.4"
