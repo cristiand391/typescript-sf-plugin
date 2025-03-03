@@ -1,6 +1,6 @@
 {
   "name": "@cristiand391/typescript-sf-plugin",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "A TypeScript language service plugin for Salesforce CLI plugin development.",
   "main": "./lib",
   "dependencies": {
@@ -14,7 +14,11 @@
     "build": "tsc",
     "build:watch": "tsc --watch"
   },
-  "keywords": ["typescript", "lsp", "language service"],
+  "keywords": [
+    "typescript",
+    "lsp",
+    "language service"
+  ],
   "author": "",
   "license": "ISC"
 }
