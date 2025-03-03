@@ -7,10 +7,10 @@
     "/lib"
   ],
   "dependencies": {
-    "tsutils": "^3.21.0",
-    "typescript": "^5.5.4"
+    "tsutils": "^3.21.0"
   },
   "devDependencies": {
+    "typescript": "^5.5.4",
     "@types/node": "^18.19.50"
   },
   "scripts": {
