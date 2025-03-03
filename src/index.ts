@@ -8,7 +8,7 @@ function init(modules: { typescript: typeof import("typescript/lib/tsserverlibra
   function create(info: ts.server.PluginCreateInfo) {
     // Diagnostic logging
     info.project.projectService.logger.info(
-      "plugin @cristiand391/ts-language-service-plugin-poc was loaded successfully"
+      "plugin @cristiand391/typescript-sf-plugin was loaded successfully"
     );
 
     // Set up decorator object
