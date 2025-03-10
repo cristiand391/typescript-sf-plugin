@@ -1,3 +1,12 @@
+## [0.1.3](https://github.com/cristiand391/typescript-sf-plugin/compare/0.1.2...0.1.3) (2025-03-10)
+
+
+### Bug Fixes
+
+* publish bundle ([dd4cb66](https://github.com/cristiand391/typescript-sf-plugin/commit/dd4cb66792a5c6f7e776731bae523f3387f566ce))
+
+
+
 ## [0.1.2](https://github.com/cristiand391/typescript-sf-plugin/compare/0.1.1...0.1.2) (2025-03-03)
 
 
