@@ -1,6 +1,6 @@
 {
-  "paths": ["src/**"],
   "compilerOptions": {
+    "paths": ["src/**"],
     "target": "ES2022",
     "module": "commonjs",
     "sourceMap": true,

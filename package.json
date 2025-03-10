@@ -6,15 +6,15 @@
   "files": [
     "/lib"
   ],
-  "dependencies": {
-    "tsutils": "^3.21.0"
-  },
   "devDependencies": {
-    "typescript": "^5.5.4",
-    "@types/node": "^18.19.50"
+    "tsutils": "^3.21.0",
+    "@types/node": "^18.19.50",
+    "esbuild": "^0.25.1",
+    "typescript": "^5.5.4"
   },
   "scripts": {
     "build": "tsc",
+    "build:bundle": "rm -rf lib && esbuild src/index.ts --bundle --format=cjs --platform=node --external:vscode --outfile=lib/index.js --minify",
     "build:watch": "tsc --watch"
   },
   "keywords": [
@@ -22,6 +22,9 @@
     "lsp",
     "language service"
   ],
-  "author": "",
+  "author": {
+    "name": "Cristian Dominguez",
+    "url": "https://github.com/cristiand391"
+  },
   "license": "ISC"
 }
