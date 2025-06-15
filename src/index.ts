@@ -24,62 +24,75 @@ function init(modules: { typescript: typeof import("typescript/lib/tsserverlibra
 
       if (!prior) {
         const sourceFile = info.languageService.getProgram()?.getSourceFile(fileName) as ts.SourceFile;
-
         const node = tsutils.getTokenAtPosition(sourceFile, position)
         if (!node) return
 
-        // if string and is arg of `getMessage`
-        if (node.kind == 11 && node.parent.getText().startsWith('messages.getMessage') || node.parent.getText().startsWith('messages.createError')) {
-          const projectService = info.project.projectService
-
-          projectService.logger.info("getting message text")
-
-          const messageImportNode = sourceFile.getChildren()[0].getChildren().find(
-            childNode => childNode.getText().startsWith('const messages = Messages.loadMessages')
-          )
-          if (!messageImportNode) {
-            projectService.logger.info('Unable to find message import node')
-            return
-          }
-          const bundleMsgName = 
+        // Check if string and is arg of getMessage or createError
+        if (
+          node.kind === ts.SyntaxKind.StringLiteral &&
+          node.parent &&
+          ts.isCallExpression(node.parent) &&
+          ts.isPropertyAccessExpression(node.parent.expression)
+        ) {
+          const propAccess = node.parent.expression;
+          const methodName = propAccess.name.getText();
+          if (methodName === 'getMessage' || methodName === 'createError') {
+            const varName = propAccess.expression.getText();
+            // Find the variable declaration for varName
+            let messageImportNode;
+            ts.forEachChild(sourceFile, child => {
+              if (ts.isVariableStatement(child)) {
+                child.declarationList.declarations.forEach(decl => {
+                  if (
+                    decl.name.getText() === varName &&
+                    decl.initializer &&
+                    ts.isCallExpression(decl.initializer) &&
+                    decl.initializer.expression.getText() === 'Messages.loadMessages'
+                  ) {
+                    messageImportNode = decl.initializer;
+                  }
+                });
+              }
+            });
+            if (!messageImportNode || !ts.isCallExpression(messageImportNode)) {
+              info.project.projectService.logger.info('Unable to find message import node');
+              return;
+            }
+            const callExpr = messageImportNode as ts.CallExpression;
+            // Get bundleMsgName (second argument)
+            const bundleMsgName =
+              callExpr.arguments.length > 1 &&
+              ts.isStringLiteral(callExpr.arguments[1]) &&
+              callExpr.arguments[1].text;
+            if (!bundleMsgName) {
+              info.project.projectService.logger.info('Unable to find bundle message name');
+              return;
+            }
+            info.project.projectService.logger.info(`bundleMsgName: ${bundleMsgName}`);
+            const messageFilePath = `${info.project.getCurrentDirectory()}/messages/${bundleMsgName}.md`;
+            info.project.projectService.logger.info(`filePath: ${messageFilePath}`);
+            const messageRawMarkdown = readFileSync(messageFilePath, 'utf8');
+            const markdown = markdownLoader(messageFilePath, messageRawMarkdown);
             // @ts-ignore
-            messageImportNode.getChildren()[0].getChildren()[1].getChildren()[0].getChildren()[2].getChildren()[2].getChildren()[2].text
-          if (!bundleMsgName) {
-            projectService.logger.info("Unable to find bundle message name")
-          }
-          projectService.logger.info(`bundleMsgName: ${bundleMsgName}`)
-
-          const messageFilePath = `${info.project.getCurrentDirectory()}/messages/${bundleMsgName}.md`
-          projectService.logger.info(`filePath: ${messageFilePath}`)
-
-          const messageRawMarkdown = readFileSync(messageFilePath, 'utf8')
-
-          const markdown = markdownLoader(messageFilePath, messageRawMarkdown)
-          
-          // @ts-ignore
-          const msgKey = node.text as string
-
-          projectService.logger.info(`msg key: ${msgKey}`)
-          const message = markdown.get(msgKey) ?? 'could not find msg, sorry'
-
-
-          return {
-            kind: ts.ScriptElementKind.string,
-            textSpan: {
-              start: node.getStart(),
-              length: 10,
-            },
-            kindModifiers: '',
-            documentation: [{
-              text: Array.isArray(message) ? message.join('\n\n') : message as string,
-              kind: 'text'
-            }]
+            const msgKey = node.text as string;
+            info.project.projectService.logger.info(`msg key: ${msgKey}`);
+            const message = markdown.get(msgKey) ?? 'could not find msg, sorry';
+            return {
+              kind: ts.ScriptElementKind.string,
+              textSpan: {
+                start: node.getStart(),
+                length: 10,
+              },
+              kindModifiers: '',
+              documentation: [{
+                text: Array.isArray(message) ? message.join('\n\n') : message as string,
+                kind: 'text'
+              }]
+            };
           }
         }
       }
-
-
-      return prior
+      return prior;
     }
     
     proxy.getDefinitionAndBoundSpan = (fileName, position) => {
@@ -88,63 +101,75 @@ function init(modules: { typescript: typeof import("typescript/lib/tsserverlibra
       if (!prior) {
         const projectService = info.project.projectService
         projectService.logger.info('no definition found')
-        
         const sourceFile = info.languageService.getProgram()?.getSourceFile(fileName) as ts.SourceFile;
-
         const node = tsutils.getTokenAtPosition(sourceFile, position)
         if (!node) return
-
-        const messageImportNode = sourceFile.getChildren()[0].getChildren().find(
-          childNode => childNode.getText().startsWith('const messages = Messages.loadMessages')
-        )
-        if (!messageImportNode) {
-          projectService.logger.info('Unable to find message import node')
-          return
-        }
-
-        const bundleMsgName = 
-          // @ts-ignore
-          messageImportNode.getChildren()[0].getChildren()[1].getChildren()[0].getChildren()[2].getChildren()[2].getChildren()[2].text
-        if (!bundleMsgName) {
-          projectService.logger.info("Unable to find bundle message name")
-        }
-        projectService.logger.info(`bundleMsgName: ${bundleMsgName}`)
-
-        // if string and is arg of `getMessage`
-        if (node.kind == 11 && node.parent.getText().startsWith('messages.getMessage') || node.parent.getText().startsWith('messages.createError')) {
-          const messageFilePath = `${info.project.getCurrentDirectory()}/messages/${bundleMsgName}.md`
-
-          const messageRawMarkdown = readFileSync(messageFilePath, 'utf8')
-
-          // @ts-ignore
-          const msgKey = node.text as string
-
-          const textSpanStart = messageRawMarkdown.indexOf(msgKey)
-
-
-          return {
-            definitions: [{
-              name: `${msgKey} definition`,
-              containerKind: ts.ScriptElementKind.string,
-              containerName: '',
-              kind: ts.ScriptElementKind.string,
-              fileName: messageFilePath,
-              textSpan: {
-                start: textSpanStart, // char position in the file
-                length: msgKey.length // length of def (msg key)
+        // Find the variable name used in the method call
+        if (
+          node.kind === ts.SyntaxKind.StringLiteral &&
+          node.parent &&
+          ts.isCallExpression(node.parent) &&
+          ts.isPropertyAccessExpression(node.parent.expression)
+        ) {
+          const propAccess = node.parent.expression;
+          const methodName = propAccess.name.getText();
+          if (methodName === 'getMessage' || methodName === 'createError') {
+            const varName = propAccess.expression.getText();
+            let messageImportNode;
+            ts.forEachChild(sourceFile, child => {
+              if (ts.isVariableStatement(child)) {
+                child.declarationList.declarations.forEach(decl => {
+                  if (
+                    decl.name.getText() === varName &&
+                    decl.initializer &&
+                    ts.isCallExpression(decl.initializer) &&
+                    decl.initializer.expression.getText() === 'Messages.loadMessages'
+                  ) {
+                    messageImportNode = decl.initializer;
+                  }
+                });
               }
-            }],
-            // TODO: what do these do? 
-            textSpan: {
-              start: 0, 
-              length: 5
+            });
+            if (!messageImportNode || !ts.isCallExpression(messageImportNode)) {
+              projectService.logger.info('Unable to find message import node');
+              return;
             }
+            const callExpr = messageImportNode as ts.CallExpression;
+            const bundleMsgName =
+              callExpr.arguments.length > 1 &&
+              ts.isStringLiteral(callExpr.arguments[1]) &&
+              callExpr.arguments[1].text;
+            if (!bundleMsgName) {
+              projectService.logger.info('Unable to find bundle message name');
+              return;
+            }
+            projectService.logger.info(`bundleMsgName: ${bundleMsgName}`);
+            const messageFilePath = `${info.project.getCurrentDirectory()}/messages/${bundleMsgName}.md`;
+            const messageRawMarkdown = readFileSync(messageFilePath, 'utf8');
+            // @ts-ignore
+            const msgKey = node.text as string;
+            const textSpanStart = messageRawMarkdown.indexOf(msgKey);
+            return {
+              definitions: [{
+                name: `${msgKey} definition`,
+                containerKind: ts.ScriptElementKind.string,
+                containerName: '',
+                kind: ts.ScriptElementKind.string,
+                fileName: messageFilePath,
+                textSpan: {
+                  start: textSpanStart,
+                  length: msgKey.length
+                }
+              }],
+              textSpan: {
+                start: 0,
+                length: 5
+              }
+            };
           }
         }
-
       }
-
-      return prior
+      return prior;
     }
 
     return proxy;
