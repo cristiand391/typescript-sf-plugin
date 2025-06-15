@@ -1,6 +1,6 @@
 {
   "name": "@cristiand391/typescript-sf-plugin",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "description": "A TypeScript language service plugin for Salesforce CLI plugin development.",
   "main": "./lib",
   "files": [
