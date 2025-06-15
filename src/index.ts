@@ -138,6 +138,53 @@ function init(modules: { typescript: typeof import("typescript/lib/tsserverlibra
       return prior;
     }
 
+    proxy.getCompletionsAtPosition = (fileName, position, options) => {
+      const prior = info.languageService.getCompletionsAtPosition(fileName, position, options);
+      const sourceFile = info.languageService.getProgram()?.getSourceFile(fileName) as ts.SourceFile;
+      const node = tsutils.getTokenAtPosition(sourceFile, position);
+      if (!node) return prior;
+      // Check if we're in the first argument of getMessage/createError/createWarning
+      if (
+        node.kind === ts.SyntaxKind.StringLiteral &&
+        node.parent &&
+        ts.isCallExpression(node.parent) &&
+        node.parent.arguments.length > 0 &&
+        node.parent.arguments[0] === node &&
+        ts.isPropertyAccessExpression(node.parent.expression)
+      ) {
+        const propAccess = node.parent.expression;
+        const methodName = propAccess.name.getText();
+        if (["getMessage", "createError", "createWarning"].includes(methodName)) {
+          const varName = propAccess.expression.getText();
+          const callExpr = findMessagesLoadCall(ts, sourceFile, varName);
+          if (!callExpr) return prior;
+          const bundleMsgName = getBundleMsgName(ts, callExpr);
+          if (!bundleMsgName) return prior;
+          const messageFilePath = `${info.project.getCurrentDirectory()}/messages/${bundleMsgName}.md`;
+          let messageRawMarkdown: string;
+          try {
+            messageRawMarkdown = readFileSync(messageFilePath, 'utf8');
+          } catch {
+            return prior;
+          }
+          const markdown = markdownLoader(messageFilePath, messageRawMarkdown);
+          const entries = Array.from(markdown.keys()).map(key => ({
+            name: key,
+            kind: ts.ScriptElementKind.string,
+            kindModifiers: '',
+            sortText: '0',
+          }));
+          return {
+            isGlobalCompletion: false,
+            isMemberCompletion: false,
+            isNewIdentifierLocation: false,
+            entries,
+          };
+        }
+      }
+      return prior;
+    }
+
     return proxy;
   }
 
