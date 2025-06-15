@@ -138,6 +138,113 @@ function init(modules: { typescript: typeof import("typescript/lib/tsserverlibra
       return prior;
     }
 
+    // getCompletionsAtPosition is needed to provide the list of message keys as completion suggestions
+    // when the user triggers completion (e.g., Tab or Ctrl+Space) in the first argument of getMessage/createError/createWarning.
+    // Without this, the user will not see custom message keys as suggestions.
+    proxy.getCompletionsAtPosition = (fileName, position, options) => {
+      const prior = info.languageService.getCompletionsAtPosition(fileName, position, options);
+      const sourceFile = info.languageService.getProgram()?.getSourceFile(fileName) as ts.SourceFile;
+      const node = tsutils.getTokenAtPosition(sourceFile, position);
+      if (!node) return prior;
+      // Check if we're in the first argument of getMessage/createError/createWarning
+      if (
+        node.kind === ts.SyntaxKind.StringLiteral &&
+        node.parent &&
+        ts.isCallExpression(node.parent) &&
+        node.parent.arguments.length > 0 &&
+        node.parent.arguments[0] === node &&
+        ts.isPropertyAccessExpression(node.parent.expression)
+      ) {
+        const propAccess = node.parent.expression;
+        const methodName = propAccess.name.getText();
+        if (["getMessage", "createError", "createWarning"].includes(methodName)) {
+          const varName = propAccess.expression.getText();
+          const callExpr = findMessagesLoadCall(ts, sourceFile, varName);
+          if (!callExpr) return prior;
+          const bundleMsgName = getBundleMsgName(ts, callExpr);
+          if (!bundleMsgName) return prior;
+          const messageFilePath = `${info.project.getCurrentDirectory()}/messages/${bundleMsgName}.md`;
+          let messageRawMarkdown: string;
+          try {
+            messageRawMarkdown = readFileSync(messageFilePath, 'utf8');
+          } catch {
+            return prior;
+          }
+          const markdown = markdownLoader(messageFilePath, messageRawMarkdown);
+          const entries = Array.from(markdown.entries()).map(([key, value]) => {
+            const doc = Array.isArray(value) ? value.join('\n\n') : (typeof value === 'string' ? value : JSON.stringify(value));
+            return {
+              name: key,
+              kind: ts.ScriptElementKind.string,
+              kindModifiers: '',
+              sortText: '0',
+              // VSCode/TS supports 'documentation' for completion entry details
+              documentation: doc,
+            };
+          });
+          return {
+            isGlobalCompletion: false,
+            isMemberCompletion: false,
+            isNewIdentifierLocation: false,
+            entries,
+          };
+        }
+      }
+      return prior;
+    }
+
+    // getCompletionEntryDetails is needed to provide the message content as documentation/hover details
+    // when the user hovers or selects a completion entry from the list provided by getCompletionsAtPosition.
+    // Without this, the user will not see the message content as documentation for the selected key.
+    proxy.getCompletionEntryDetails = (fileName, position, entryName, formatOptions, source, preferences, data) => {
+      // Try to resolve message context for the completion entry
+      const sourceFile = info.languageService.getProgram()?.getSourceFile(fileName) as ts.SourceFile;
+      const node = tsutils.getTokenAtPosition(sourceFile, position);
+      if (node) {
+        // Try to find the context for the message key
+        if (
+          node.parent &&
+          ts.isCallExpression(node.parent) &&
+          node.parent.arguments.length > 0 &&
+          ts.isPropertyAccessExpression(node.parent.expression)
+        ) {
+          const propAccess = node.parent.expression;
+          const methodName = propAccess.name.getText();
+          if (["getMessage", "createError", "createWarning"].includes(methodName)) {
+            const varName = propAccess.expression.getText();
+            const callExpr = findMessagesLoadCall(ts, sourceFile, varName);
+            if (callExpr) {
+              const bundleMsgName = getBundleMsgName(ts, callExpr);
+              if (bundleMsgName) {
+                const messageFilePath = `${info.project.getCurrentDirectory()}/messages/${bundleMsgName}.md`;
+                let messageRawMarkdown: string;
+                try {
+                  messageRawMarkdown = readFileSync(messageFilePath, 'utf8');
+                } catch {
+                  return info.languageService.getCompletionEntryDetails(fileName, position, entryName, formatOptions, source, preferences, data);
+                }
+                const markdown = markdownLoader(messageFilePath, messageRawMarkdown);
+                const value = markdown.get(entryName);
+                if (value) {
+                  const doc = Array.isArray(value) ? value.join('\n\n') : (typeof value === 'string' ? value : JSON.stringify(value));
+                  return {
+                    name: entryName,
+                    kind: ts.ScriptElementKind.string,
+                    kindModifiers: '',
+                    displayParts: [{ text: '', kind: 'text' }],
+                    documentation: [{ text: doc, kind: 'markdown' }],
+                    tags: [],
+                  };
+                }
+              }
+            }
+          }
+        }
+      }
+      // fallback to default
+      return info.languageService.getCompletionEntryDetails(fileName, position, entryName, formatOptions, source, preferences, data);
+    }
+
     return proxy;
   }
 
