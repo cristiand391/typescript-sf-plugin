@@ -1,3 +1,12 @@
+## [0.2.1](https://github.com/cristiand391/typescript-sf-plugin/compare/0.2.0...0.2.1) (2025-07-06)
+
+
+### Bug Fixes
+
+* go-to-def matches exact message keys instead of substrings ([#4](https://github.com/cristiand391/typescript-sf-plugin/issues/4)) ([a33b4c6](https://github.com/cristiand391/typescript-sf-plugin/commit/a33b4c6d3b9df8246df944cd81e35305f19ca638))
+
+
+
 # [0.2.0](https://github.com/cristiand391/typescript-sf-plugin/compare/0.1.4...0.2.0) (2025-06-15)
 
 
@@ -31,15 +40,6 @@
 ### Bug Fixes
 
 * remove TS as dep ([fb0104a](https://github.com/cristiand391/typescript-sf-plugin/commit/fb0104ad67f23a11032b862d69fc20629699d781))
-
-
-
-## [0.1.1](https://github.com/cristiand391/typescript-sf-plugin/compare/0.1.0...0.1.1) (2025-03-03)
-
-
-### Bug Fixes
-
-* include build when publishing to npm ([879b667](https://github.com/cristiand391/typescript-sf-plugin/commit/879b6671bfd35e31b65432b174e34d7b49c86b07))
 
 
 
