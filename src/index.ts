@@ -115,7 +115,23 @@ function init(modules: { typescript: typeof import("typescript/lib/tsserverlibra
         if (context) {
           const { messageFilePath, msgKey } = context;
           const messageRawMarkdown = readFileSync(messageFilePath, 'utf8');
-          const textSpanStart = messageRawMarkdown.indexOf(msgKey);
+          
+          // Parse the markdown to get exact key matches
+          const markdown = markdownLoader(messageFilePath, messageRawMarkdown);
+          
+          // Check if the exact key exists - if not, return early (void)
+          if (!markdown.has(msgKey)) {
+            return;
+          }
+          
+          // Find the exact position of "# msgKey" in the raw markdown
+          const pattern = new RegExp(`^# ${msgKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'm');
+          const match = pattern.exec(messageRawMarkdown);
+          if (!match) {
+            return;
+          }
+          
+          const textSpanStart = match.index + 2; // +2 to skip "# " and point to the key
           return {
             definitions: [{
               name: `${msgKey} definition`,
